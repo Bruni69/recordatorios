@@ -153,7 +153,7 @@ a:hover { text-decoration: underline; }
 
 .centrado { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
 
-.caja-login { width: 360px; }
+.caja-login { width: 360px; max-width: 100%; }
 .caja-login h2 { margin-top: 0; }
 
 .pestanas { display: flex; gap: 8px; margin-bottom: 18px; }
@@ -193,3 +193,74 @@ a:hover { text-decoration: underline; }
   z-index: 50;
 }
 .toast.visible { opacity: 1; transform: translateY(0); }
+
+/* ---------- Móvil ---------- */
+@media (max-width: 720px) {
+  body { overflow-x: hidden; }
+
+  .barra {
+    padding: 10px 14px;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+  .barra h1 { font-size: 16px; }
+  .barra nav { gap: 10px; flex-wrap: wrap; }
+
+  .contenedor { margin: 18px auto; padding: 0 14px; }
+
+  .tarjeta { padding: 18px 16px; border-radius: 14px; }
+
+  .centrado { padding: 16px; }
+
+  .campo input, .campo select, .campo textarea { font-size: 16px; }
+
+  .fila .campo { min-width: 100%; }
+
+  .estadisticas { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .metrica { padding: 14px 14px; border-radius: 12px; }
+  .metrica .valor { font-size: 20px; }
+  .metrica .etiqueta { font-size: 11px; }
+
+  .filtros { gap: 6px; }
+  .filtros .boton { flex: 1 1 auto; text-align: center; }
+
+  /* Tabla -> tarjetas apiladas */
+  .tabla, .tabla tbody, .tabla tr, .tabla td { display: block; width: 100%; }
+  .tabla thead { display: none; }
+
+  .tabla tr {
+    background: var(--tarjeta);
+    border: 1px solid var(--borde);
+    border-radius: 12px;
+    padding: 6px 14px 10px;
+    margin-bottom: 10px;
+    box-shadow: var(--sombra);
+  }
+  .tabla td {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--borde);
+  }
+  .tabla td:last-child { border-bottom: none; }
+  .tabla td::before {
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--texto-suave);
+  }
+
+  .tabla td.acciones { flex-direction: column; gap: 6px; }
+  .tabla td.acciones .boton { width: 100%; text-align: center; margin: 0; min-height: 40px; }
+
+  .toast {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    text-align: center;
+  }
+}

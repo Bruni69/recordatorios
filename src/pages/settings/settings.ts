@@ -7,6 +7,11 @@ const btnGuardar = document.getElementById('btn-guardar-whatsapp') as HTMLButton
 const btnTest = document.getElementById('btn-test') as HTMLButtonElement;
 const btnEmail = document.getElementById('btn-email') as HTMLButtonElement;
 const btnReminders = document.getElementById('btn-reminders') as HTMLButtonElement;
+const imapHost = document.getElementById('imap-host') as HTMLInputElement;
+const imapPort = document.getElementById('imap-port') as HTMLInputElement;
+const imapUser = document.getElementById('imap-user') as HTMLInputElement;
+const imapPassword = document.getElementById('imap-password') as HTMLInputElement;
+const btnGuardarImap = document.getElementById('btn-guardar-imap') as HTMLButtonElement;
 const emailEstado = document.getElementById('email-estado') as HTMLParagraphElement;
 const msgWhatsapp = document.getElementById('msg-whatsapp') as HTMLParagraphElement;
 const msgEmail = document.getElementById('msg-email') as HTMLParagraphElement;
@@ -19,11 +24,14 @@ function mostrarMensaje(el: HTMLParagraphElement, texto: string, esError: boolea
 }
 
 async function cargarSettings(): Promise<void> {
-  const settings = await api.obtenerSettings();
+  const [settings, configEmail] = await Promise.all([api.obtenerSettings(), api.obtenerConfigEmail()]);
   whatsappInput.value = settings.whatsapp_to;
-  emailEstado.textContent = settings.email_configurado
+  emailEstado.textContent = configEmail.configurado
     ? 'La captura por email está configurada. Escaneá la casilla cuando quieras.'
-    : 'La captura por email NO está configurada. Configurá tu casilla IMAP (o completá los datos en el .env del servidor).';
+    : 'La captura por email NO está configurada. Configurá tu casilla IMAP abajo.';
+  imapHost.value = configEmail.host ?? '';
+  imapPort.value = String(configEmail.port ?? 993);
+  imapUser.value = configEmail.user ?? '';
 }
 
 btnGuardar.addEventListener('click', async () => {
@@ -55,12 +63,46 @@ btnTest.addEventListener('click', async () => {
   }
 });
 
+btnGuardarImap.addEventListener('click', async () => {
+  const host = imapHost.value.trim();
+  const user = imapUser.value.trim();
+  const password = imapPassword.value.trim();
+  const port = Number(imapPort.value);
+  if (!host || !user || !password) {
+    mostrarMensaje(msgEmail, 'Host, usuario y contraseña son obligatorios.', true);
+    return;
+  }
+  btnGuardarImap.disabled = true;
+  msgEmail.hidden = true;
+  try {
+    await api.guardarConfigEmail({
+      host,
+      port: Number.isInteger(port) && port > 0 && port <= 65535 ? port : 993,
+      user,
+      password,
+    });
+    imapPassword.value = '';
+    emailEstado.textContent = 'La captura por email está configurada. Escaneá la casilla cuando quieras.';
+    mostrarMensaje(msgEmail, 'Casilla guardada.', false);
+  } catch (err) {
+    mostrarMensaje(msgEmail, err instanceof ApiError ? err.message : 'Error inesperado', true);
+  } finally {
+    btnGuardarImap.disabled = false;
+  }
+});
+
 btnEmail.addEventListener('click', async () => {
   btnEmail.disabled = true;
   msgEmail.hidden = true;
   try {
     const resultado = await api.revisarEmail();
-    mostrarMensaje(msgEmail, `Escaneo terminado. ${resultado.insertadas} factura(s) registrada(s).`, false);
+    if (resultado.motivo === 'imap_no_configurado') {
+      mostrarMensaje(msgEmail, 'IMAP no configurado. Completá los datos de tu casilla y guardala.', true);
+    } else if (resultado.motivo === 'ya_en_curso') {
+      mostrarMensaje(msgEmail, 'Escaneo en curso o recién realizado. Probá de nuevo en unos minutos.', false);
+    } else {
+      mostrarMensaje(msgEmail, `Escaneo terminado. ${resultado.insertadas} factura(s) registrada(s).`, false);
+    }
   } catch (err) {
     mostrarMensaje(msgEmail, err instanceof ApiError ? err.message : 'Error inesperado', true);
   } finally {

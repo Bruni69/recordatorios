@@ -91,11 +91,13 @@ miscRoutes.post('/api/email/config', requireAuth, async (req: Request, res: Resp
 
 miscRoutes.post('/api/email/check', requireAuth, async (req: Request, res: Response) => {
   try {
-    const insertadas = await escanearInbox(req.usuarioId);
-    res.json({ insertadas });
+    res.json(await escanearInbox(req.usuarioId));
   } catch (err) {
     console.error('[email][check]', err);
-    res.status(500).json({ error: 'Error al escanear la casilla de email' });
+    const detalle = err instanceof Error ? err.message : String(err);
+    res.status(500).json({
+      error: `No se pudo conectar o autenticar con el servidor IMAP: ${detalle.slice(0, 300)}`,
+    });
   }
 });
 

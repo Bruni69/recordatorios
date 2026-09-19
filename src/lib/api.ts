@@ -83,7 +83,7 @@ export const api = {
   guardarConfigEmail(imap: { host: string; port: number; user: string; password: string }): Promise<{ ok: boolean }> {
     return peticion('/api/email/config', { method: 'POST', body: JSON.stringify(imap) });
   },
-  revisarEmail(): Promise<{ insertadas: number }> {
+  revisarEmail(): Promise<{ insertadas: number; motivo: 'ok' | 'imap_no_configurado' | 'ya_en_curso' }> {
     return peticion('/api/email/check', { method: 'POST' });
   },
   enviarMensajePrueba(): Promise<{ enviado: boolean; motivo: string }> {

@@ -24,20 +24,29 @@ async function textoDePdf(buffer: Buffer): Promise<string> {
   }
 }
 
-const escaneosEnCurso = new Set<number>();
+const ESCANEO_TTL_MS = 10 * 60 * 1000;
+const escaneosEnCurso = new Map<number, number>();
 
-export async function escanearInbox(userId: number): Promise<number> {
+export interface ResultadoEscaneo {
+  insertadas: number;
+  motivo: 'ok' | 'imap_no_configurado' | 'ya_en_curso';
+}
+
+export async function escanearInbox(userId: number): Promise<ResultadoEscaneo> {
   if (!(await emailConfiguradoCompletoBd(userId))) {
     console.log('[email][skip] IMAP no configurado (ni .env ni base de datos)');
-    return 0;
+    return { insertadas: 0, motivo: 'imap_no_configurado' };
   }
-  if (escaneosEnCurso.has(userId)) {
+  const ahora = Date.now();
+  const inicio = escaneosEnCurso.get(userId);
+  if (inicio !== undefined && ahora - inicio < ESCANEO_TTL_MS) {
     console.log('[email][skip] Escaneo ya en curso para este usuario, se omite.');
-    return 0;
+    return { insertadas: 0, motivo: 'ya_en_curso' };
   }
-  escaneosEnCurso.add(userId);
+  escaneosEnCurso.set(userId, ahora);
   try {
-    return await escanearCasilla(userId);
+    const insertadas = await escanearCasilla(userId);
+    return { insertadas, motivo: 'ok' };
   } finally {
     escaneosEnCurso.delete(userId);
   }
@@ -49,7 +58,7 @@ async function escanearCasilla(userId: number): Promise<number> {
   const client = new ImapFlow({
     host: imap.host,
     port: imap.port,
-    secure: true,
+    secure: imap.port === 993,
     auth: { user: imap.user, pass: imap.password },
     logger: false,
   });

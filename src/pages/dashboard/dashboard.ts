@@ -137,14 +137,16 @@ async function ejecutarAccion(boton: HTMLButtonElement, factura: Factura, accion
   }
 }
 
-function crearCelda(contenido: string): HTMLTableCellElement {
+function crearCelda(contenido: string, etiqueta: string): HTMLTableCellElement {
   const td = document.createElement('td');
+  td.dataset.label = etiqueta;
   td.textContent = contenido;
   return td;
 }
 
-function crearCeldaConSub(principal: string, secundario: string, claseSecundario = 'texto-mensaje'): HTMLTableCellElement {
+function crearCeldaConSub(principal: string, secundario: string, claseSecundario: string, etiqueta: string): HTMLTableCellElement {
   const td = document.createElement('td');
+  td.dataset.label = etiqueta;
   const fuerte = document.createElement('div');
   fuerte.textContent = principal;
   td.appendChild(fuerte);
@@ -155,8 +157,9 @@ function crearCeldaConSub(principal: string, secundario: string, claseSecundario
   return td;
 }
 
-function crearBadge(estadoFactura: EstadoFactura): HTMLTableCellElement {
+function crearBadge(estadoFactura: EstadoFactura, etiqueta: string): HTMLTableCellElement {
   const td = document.createElement('td');
+  td.dataset.label = etiqueta;
   const badge = document.createElement('span');
   badge.className = `badge ${estadoFactura === 'pagada' ? 'pagada' : estadoFactura === 'revisar' ? 'revisar' : 'pendiente'}`;
   badge.textContent = etiquetaEstado(estadoFactura);
@@ -167,6 +170,7 @@ function crearBadge(estadoFactura: EstadoFactura): HTMLTableCellElement {
 function crearCeldaAcciones(f: Factura): HTMLTableCellElement {
   const td = document.createElement('td');
   td.className = 'acciones';
+  td.dataset.label = 'Acciones';
   if (f.estado === 'pagada') {
     td.appendChild(crearBotonAccion('Reactivar', 'boton ok', f, 'reactivar'));
     return td;
@@ -179,13 +183,18 @@ function crearCeldaAcciones(f: Factura): HTMLTableCellElement {
 
 function crearFila(f: Factura): HTMLTableRowElement {
   const tr = document.createElement('tr');
-  tr.appendChild(crearCeldaConSub(f.proveedor, f.email ?? ''));
-  tr.appendChild(crearCelda(formatearMonto(f)));
+  tr.appendChild(crearCeldaConSub(f.proveedor, f.email ?? '', 'texto-mensaje', 'Proveedor'));
+  tr.appendChild(crearCelda(formatearMonto(f), 'Monto'));
   tr.appendChild(
-    crearCeldaConSub(formatearFecha(f.fecha_vencimiento), textoPlazo(f.fecha_vencimiento), clasePlazo(f.estado, f.fecha_vencimiento))
+    crearCeldaConSub(
+      formatearFecha(f.fecha_vencimiento),
+      textoPlazo(f.fecha_vencimiento),
+      clasePlazo(f.estado, f.fecha_vencimiento),
+      'Vence'
+    )
   );
-  tr.appendChild(crearBadge(f.estado));
-  tr.appendChild(crearCelda(f.origen === 'email' ? 'Email' : 'Manual'));
+  tr.appendChild(crearBadge(f.estado, 'Estado'));
+  tr.appendChild(crearCelda(f.origen === 'email' ? 'Email' : 'Manual', 'Origen'));
   tr.appendChild(crearCeldaAcciones(f));
   return tr;
 }
