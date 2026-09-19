@@ -7,8 +7,6 @@ const btnGuardar = document.getElementById('btn-guardar-whatsapp') as HTMLButton
 const btnTest = document.getElementById('btn-test') as HTMLButtonElement;
 const btnEmail = document.getElementById('btn-email') as HTMLButtonElement;
 const btnReminders = document.getElementById('btn-reminders') as HTMLButtonElement;
-const imapHost = document.getElementById('imap-host') as HTMLInputElement;
-const imapPort = document.getElementById('imap-port') as HTMLInputElement;
 const imapUser = document.getElementById('imap-user') as HTMLInputElement;
 const imapPassword = document.getElementById('imap-password') as HTMLInputElement;
 const btnGuardarImap = document.getElementById('btn-guardar-imap') as HTMLButtonElement;
@@ -29,8 +27,6 @@ async function cargarSettings(): Promise<void> {
   emailEstado.textContent = configEmail.configurado
     ? 'La captura por email está configurada. Escaneá la casilla cuando quieras.'
     : 'La captura por email NO está configurada. Configurá tu casilla IMAP abajo.';
-  imapHost.value = configEmail.host ?? '';
-  imapPort.value = String(configEmail.port ?? 993);
   imapUser.value = configEmail.user ?? '';
 }
 
@@ -64,20 +60,18 @@ btnTest.addEventListener('click', async () => {
 });
 
 btnGuardarImap.addEventListener('click', async () => {
-  const host = imapHost.value.trim();
   const user = imapUser.value.trim();
   const password = imapPassword.value.trim();
-  const port = Number(imapPort.value);
-  if (!host || !user || !password) {
-    mostrarMensaje(msgEmail, 'Host, usuario y contraseña son obligatorios.', true);
+  if (!user || !password) {
+    mostrarMensaje(msgEmail, 'Email y contraseña de aplicación son obligatorios.', true);
     return;
   }
   btnGuardarImap.disabled = true;
   msgEmail.hidden = true;
   try {
     await api.guardarConfigEmail({
-      host,
-      port: Number.isInteger(port) && port > 0 && port <= 65535 ? port : 993,
+      host: 'imap.gmail.com',
+      port: 993,
       user,
       password,
     });
