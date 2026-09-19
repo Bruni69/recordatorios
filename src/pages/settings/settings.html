@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Configuración · Recordatorios</title>
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+  <header class="barra">
+    <h1>⚙️ Configuración</h1>
+    <nav>
+      <a href="/src/pages/dashboard/dashboard.html">Inicio</a>
+      <a class="desactivado" href="#">Configuración</a>
+      <button class="boton secundario chico" id="btn-logout">Salir</button>
+    </nav>
+  </header>
+
+  <main class="contenedor">
+    <section class="tarjeta">
+      <h2>WhatsApp</h2>
+      <p class="texto-secundario">Número adonde llegan los recordatorios. Formato internacional con + (ej: +5491123456789).</p>
+      <div class="campo">
+        <label for="whatsapp-to">Número de WhatsApp de destino</label>
+        <input id="whatsapp-to" type="tel" placeholder="+5491123456789" />
+      </div>
+      <button class="boton" id="btn-guardar-whatsapp">Guardar número</button>
+      <button class="boton secundario" id="btn-test">Enviar mensaje de prueba</button>
+      <p class="aviso" id="msg-whatsapp" hidden></p>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Captura por email</h2>
+      <p class="texto-secundario" id="email-estado">…</p>
+      <button class="boton" id="btn-email">Escanear casilla ahora</button>
+      <p class="aviso" id="msg-email" hidden></p>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Recordatorios</h2>
+      <p class="texto-secundario">El servidor revisa los vencimientos todos los días a la hora configurada (<code>REMINDER_CRON</code> en .env).</p>
+      <button class="boton secundario" id="btn-reminders">Ejecutar revisión ahora</button>
+      <p class="aviso" id="msg-reminders" hidden></p>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script type="module" src="./settings.ts"></script>
+</body>
+</html>

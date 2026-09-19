@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Facturas · Recordatorios</title>
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+  <header class="barra">
+    <h1>🗓 Facturas</h1>
+    <nav>
+      <a class="desactivado" href="#">Inicio</a>
+      <a href="/src/pages/settings/settings.html">Configuración</a>
+      <button class="boton secundario chico" id="btn-logout">Salir</button>
+    </nav>
+  </header>
+
+  <main class="contenedor">
+    <section class="estadisticas" id="estadisticas"></section>
+
+    <section class="tarjeta">
+      <h2 id="titulo-form">Nueva factura</h2>
+      <form id="factura-form">
+        <div class="fila">
+          <div class="campo">
+            <label for="proveedor">Proveedor</label>
+            <input id="proveedor" type="text" required />
+          </div>
+          <div class="campo">
+            <label for="monto">Monto</label>
+            <input id="monto" type="number" step="0.01" min="0" required />
+          </div>
+          <div class="campo">
+            <label for="moneda">Moneda</label>
+            <select id="moneda">
+              <option value="ARS">ARS</option>
+              <option value="USD">USD</option>
+              <option value="OTRA">Otro</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="fecha">Fecha de vencimiento</label>
+            <input id="fecha" type="date" required />
+          </div>
+        </div>
+        <div class="campo">
+          <label for="notas">Notas (opcional)</label>
+          <textarea id="notas" rows="2"></textarea>
+        </div>
+        <button class="boton" type="submit" id="btn-guardar">Guardar</button>
+        <button class="boton secundario" type="button" id="btn-cancelar-edicion" hidden>Cancelar edición</button>
+        <p class="aviso error" id="form-error" hidden></p>
+      </form>
+    </section>
+
+    <section class="tarjeta">
+      <div class="filtros" id="filtros">
+        <button class="boton secundario chico" data-filtro="">Todas</button>
+        <button class="boton secundario chico" data-filtro="pendiente">Pendientes</button>
+        <button class="boton secundario chico" data-filtro="revisar">Por revisar</button>
+        <button class="boton secundario chico" data-filtro="pagada">Pagadas</button>
+      </div>
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>Proveedor</th>
+            <th>Monto</th>
+            <th>Vence</th>
+            <th>Estado</th>
+            <th>Origen</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="cuerpo-facturas"></tbody>
+      </table>
+      <p class="texto-secundario" id="sin-datos"></p>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script type="module" src="./dashboard.ts"></script>
+</body>
+</html>

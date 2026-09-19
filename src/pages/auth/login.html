@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ingresar · Recordatorios</title>
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+  <main class="centrado">
+    <section class="tarjeta caja-login">
+      <h2>Recordatorios de impuestos y deudas</h2>
+      <p class="texto-secundario">Ingresá con tu email y contraseña. Si todavía no tenés cuenta, creala gratis.</p>
+      <div class="pestanas">
+        <button type="button" id="tab-entrar" class="pestana activa" data-pestana="login">Ingresar</button>
+        <button type="button" id="tab-registrarse" class="pestana" data-pestana="register">Crear cuenta</button>
+      </div>
+      <form id="login-form">
+        <div class="campo">
+          <label for="email">Email</label>
+          <input id="email" type="email" autocomplete="email" required />
+        </div>
+        <div class="campo">
+          <label for="password">Contraseña</label>
+          <input id="password" type="password" autocomplete="current-password" required />
+        </div>
+        <button class="boton" type="submit" id="btn-entrar">Entrar</button>
+        <p class="aviso error" id="login-error" hidden></p>
+      </form>
+      <form id="register-form" hidden>
+        <div class="campo">
+          <label for="reg-email">Email</label>
+          <input id="reg-email" type="email" autocomplete="email" required />
+        </div>
+        <div class="campo">
+          <label for="reg-password">Contraseña</label>
+          <input id="reg-password" type="password" autocomplete="new-password" minlength="8" required />
+        </div>
+        <button class="boton" type="submit" id="btn-registrarse">Crear cuenta</button>
+        <p class="aviso error" id="register-error" hidden></p>
+      </form>
+    </section>
+  </main>
+  <script type="module" src="./login.ts"></script>
+</body>
+</html>

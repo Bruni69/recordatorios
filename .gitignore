@@ -1,0 +1,15 @@
+# Dependencias
+node_modules/
+
+# Build
+dist/
+
+# Entorno (¡contiene secretos! nunca se sube)
+.env
+
+# Logs
+*.log
+
+# Sistema
+.DS_Store
+Thumbs.db

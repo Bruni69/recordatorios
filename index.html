@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recordatorios</title>
+  <script>
+    const token = localStorage.getItem('rk_token');
+    location.replace(token ? '/src/pages/dashboard/dashboard.html' : '/src/pages/auth/login.html');
+  </script>
+</head>
+<body></body>
+</html>
