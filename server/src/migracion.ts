@@ -27,6 +27,9 @@ async function asegurarTablaUsuarios(): Promise<number> {
     creado_en    timestamptz not null default now()
   )`);
 
+  await asegurarTablaFacturas();
+  await asegurarTablaSettings();
+
   const { rows: existente } = await pool.query<{ id: number }>(
     'select id from usuarios where email = $1',
     [config.adminEmail],
@@ -48,6 +51,41 @@ async function asegurarTablaUsuarios(): Promise<number> {
     [config.adminEmail, hash],
   );
   return rows[0]!.id;
+}
+
+async function asegurarTablaFacturas(): Promise<void> {
+  await pool.query(`create table if not exists facturas (
+    id                     bigserial primary key,
+    user_id                bigint not null references usuarios(id) on delete cascade,
+    proveedor              text not null,
+    monto                  numeric(14,2) not null default 0,
+    moneda                 text not null default 'ARS',
+    fecha_vencimiento      date not null,
+    estado                 text not null default 'pendiente',
+    origen                 text not null default 'manual',
+    email                  text,
+    notas                  text,
+    aviso_semana_enviado   boolean not null default false,
+    aviso_48hs_enviado     boolean not null default false,
+    creada_en              timestamptz not null default now(),
+    constraint chk_facturas_estado check (estado in ('pendiente', 'pagada', 'revisar')),
+    constraint chk_facturas_moneda check (moneda in ('ARS', 'USD', 'OTRA')),
+    constraint chk_facturas_origen check (origen in ('email', 'manual')),
+    constraint chk_facturas_monto_positivo check (monto >= 0)
+  )`);
+
+  await pool.query('create index if not exists idx_facturas_vencimiento on facturas (fecha_vencimiento)');
+  await pool.query('create index if not exists idx_facturas_estado on facturas (estado)');
+  await pool.query('create index if not exists idx_facturas_usuario on facturas (user_id)');
+}
+
+async function asegurarTablaSettings(): Promise<void> {
+  await pool.query(`create table if not exists settings (
+    user_id bigint not null references usuarios(id) on delete cascade,
+    key     text not null,
+    value   text,
+    primary key (user_id, key)
+  )`);
 }
 
 async function asegurarFacturas(adminId: number): Promise<void> {
