@@ -229,7 +229,7 @@ function renderEstadisticas(lista: Factura[]): void {
   const pendientes = lista.filter((f) => f.estado !== 'pagada');
   const enSemana = pendientes.filter((f) => {
     const d = diasHasta(f.fecha_vencimiento);
-    return d > 0 && d <= 7;
+    return d > 0 && d <= 3;
   });
   const enDos = pendientes.filter((f) => {
     const d = diasHasta(f.fecha_vencimiento);
@@ -240,7 +240,7 @@ function renderEstadisticas(lista: Factura[]): void {
     .reduce((acc, f) => acc + f.monto, 0);
 
   statsCont.appendChild(crearMetrica(String(pendientes.length), 'Facturas sin pagar'));
-  statsCont.appendChild(crearMetrica(String(enSemana.length), 'Vencen en 7 días'));
+  statsCont.appendChild(crearMetrica(String(enSemana.length), 'Vencen en 72 hs'));
   statsCont.appendChild(crearMetrica(String(enDos.length), 'Vencen en 48 hs'));
   statsCont.appendChild(crearMetrica(pendienteArs.toLocaleString('es-AR', { maximumFractionDigits: 0 }), 'Pendiente (ARS)'));
 }
@@ -334,3 +334,10 @@ filtrosCont.addEventListener('click', (evento) => {
 btnLogout.addEventListener('click', logout);
 
 void refrescar();
+// Mostrar las facturas importadas en segundo plano sin recargar la página.
+window.setInterval(() => {
+  if (document.visibilityState === 'visible') void refrescar();
+}, 30_000);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') void refrescar();
+});

@@ -25,9 +25,14 @@ async function cargarSettings(): Promise<void> {
   const [settings, configEmail] = await Promise.all([api.obtenerSettings(), api.obtenerConfigEmail()]);
   whatsappInput.value = settings.whatsapp_to;
   emailEstado.textContent = configEmail.configurado
-    ? 'La captura por email está configurada. Escaneá la casilla cuando quieras.'
+    ? 'La captura por email está configurada. Se escanea automáticamente cada 5 minutos; también podés escanearla ahora.'
     : 'La captura por email NO está configurada. Configurá tu casilla IMAP abajo.';
   imapUser.value = configEmail.user ?? '';
+  msgReminders.textContent = configEmail.avisos_configurados
+    ? 'Los avisos se envían al email con el que registraste tu cuenta, 3 y 2 días antes del vencimiento.'
+    : 'Falta configurar el envío de avisos. Guardá tu casilla Gmail con una contraseña de aplicación o configurá SMTP en el servidor.';
+  msgReminders.className = `aviso ${configEmail.avisos_configurados ? 'ok' : 'error'}`;
+  msgReminders.hidden = false;
 }
 
 btnGuardar.addEventListener('click', async () => {
@@ -76,8 +81,9 @@ btnGuardarImap.addEventListener('click', async () => {
       password,
     });
     imapPassword.value = '';
-    emailEstado.textContent = 'La captura por email está configurada. Escaneá la casilla cuando quieras.';
-    mostrarMensaje(msgEmail, 'Casilla guardada.', false);
+    emailEstado.textContent = 'La captura por email está configurada. Se escanea automáticamente cada 5 minutos; también podés escanearla ahora.';
+    await cargarSettings();
+    mostrarMensaje(msgEmail, 'Casilla guardada. El escaneo automático importará las facturas detectadas.', false);
   } catch (err) {
     mostrarMensaje(msgEmail, err instanceof ApiError ? err.message : 'Error inesperado', true);
   } finally {
@@ -109,7 +115,7 @@ btnReminders.addEventListener('click', async () => {
   msgReminders.hidden = true;
   try {
     const resultado = await api.ejecutarRecordatorios();
-    mostrarMensaje(msgReminders, `Revisión terminada. ${resultado.avisos} aviso(s) procesado(s).`, false);
+    mostrarMensaje(msgReminders, `Revisión terminada. ${resultado.avisos} email(s) enviado(s).`, false);
   } catch (err) {
     mostrarMensaje(msgReminders, err instanceof ApiError ? err.message : 'Error inesperado', true);
   } finally {
@@ -119,4 +125,6 @@ btnReminders.addEventListener('click', async () => {
 
 document.getElementById('btn-logout')!.addEventListener('click', logout);
 
-void cargarSettings();
+void cargarSettings().catch((err) => {
+  mostrarMensaje(msgEmail, err instanceof ApiError ? err.message : 'No se pudo cargar la configuración.', true);
+});

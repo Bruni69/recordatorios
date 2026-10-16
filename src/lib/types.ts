@@ -14,6 +14,7 @@ export interface Factura {
   notas: string | null;
   aviso_semana_enviado: boolean;
   aviso_48hs_enviado: boolean;
+  aviso_72hs_enviado: boolean;
   creada_en: string;
 }
 
@@ -33,6 +34,7 @@ export interface SettingsPublic {
 
 export interface ConfigEmailPublic {
   configurado: boolean;
+  avisos_configurados: boolean;
   host: string;
   port: number;
   user: string;

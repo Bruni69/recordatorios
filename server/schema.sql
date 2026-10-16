@@ -22,6 +22,7 @@ create table if not exists facturas (
   notas                  text,
   aviso_semana_enviado   boolean not null default false,
   aviso_48hs_enviado     boolean not null default false,
+  aviso_72hs_enviado     boolean not null default false,
   creada_en              timestamptz not null default now()
 );
 
@@ -50,4 +51,13 @@ create table if not exists settings (
   key     text not null,
   value   text,
   primary key (user_id, key)
+);
+
+create table if not exists emails_procesados (
+  user_id bigint not null references usuarios(id) on delete cascade,
+  casilla text not null,
+  uid_validity text not null,
+  uid bigint not null,
+  procesado_en timestamptz not null default now(),
+  primary key (user_id, casilla, uid_validity, uid)
 );

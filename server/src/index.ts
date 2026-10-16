@@ -9,7 +9,7 @@ import { asegurarMigracion } from './migracion.js';
 import { authRoutes } from './routes/authRoutes.js';
 import { facturaRoutes } from './routes/facturaRoutes.js';
 import { miscRoutes } from './routes/miscRoutes.js';
-import { iniciarScheduler, revisarVencimientos } from './reminders/scheduler.js';
+import { iniciarScheduler, ejecutarRevisionInicial } from './reminders/scheduler.js';
 
 const app = express();
 app.use(cors({ origin: config.corsOrigin === '*' ? true : config.corsOrigin.split(',').map((o) => o.trim()) }));
@@ -67,7 +67,7 @@ async function main(): Promise<void> {
     console.log(`✅ API en http://localhost:${config.port}`);
   });
 
-  revisarVencimientos().catch((err) => console.error('[reminders][inicio]', err));
+  ejecutarRevisionInicial().catch((err) => console.error('[reminders][inicio]', err));
 }
 
 const cerrar = (senial: string): void => {

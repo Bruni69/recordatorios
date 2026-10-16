@@ -14,6 +14,7 @@ export interface Factura {
   notas: string | null;
   aviso_semana_enviado: boolean;
   aviso_48hs_enviado: boolean;
+  aviso_72hs_enviado: boolean;
   creada_en: string;
 }
 
@@ -52,6 +53,7 @@ export interface FilaFactura {
   notas: string | null;
   aviso_semana_enviado: boolean;
   aviso_48hs_enviado: boolean;
+  aviso_72hs_enviado: boolean;
   creada_en: string;
   user_id: number;
 }
@@ -69,6 +71,7 @@ export function filaAFactura(fila: FilaFactura): Factura {
     notas: fila.notas,
     aviso_semana_enviado: fila.aviso_semana_enviado,
     aviso_48hs_enviado: fila.aviso_48hs_enviado,
+    aviso_72hs_enviado: fila.aviso_72hs_enviado,
     creada_en: fila.creada_en,
   };
 }

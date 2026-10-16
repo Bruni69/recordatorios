@@ -1,8 +1,9 @@
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
-import { crearFacturaDeEmail, emailConfiguradoCompletoBd, obtenConfigImap } from '../facturas.js';
+import { emailConfiguradoCompletoBd, obtenConfigImap } from '../facturas.js';
 import { DatoFacturaEmail, Moneda } from '../models.js';
+import { obtenerUidsProcesados, registrarEmailProcesado } from './procesados.js';
 
 interface DocEmail {
   subject: string;
@@ -24,8 +25,7 @@ async function textoDePdf(buffer: Buffer): Promise<string> {
   }
 }
 
-const ESCANEO_TTL_MS = 10 * 60 * 1000;
-const escaneosEnCurso = new Map<number, number>();
+const escaneosEnCurso = new Set<number>();
 
 export interface ResultadoEscaneo {
   insertadas: number;
@@ -37,13 +37,11 @@ export async function escanearInbox(userId: number): Promise<ResultadoEscaneo> {
     console.log('[email][skip] IMAP no configurado (ni .env ni base de datos)');
     return { insertadas: 0, motivo: 'imap_no_configurado' };
   }
-  const ahora = Date.now();
-  const inicio = escaneosEnCurso.get(userId);
-  if (inicio !== undefined && ahora - inicio < ESCANEO_TTL_MS) {
+  if (escaneosEnCurso.has(userId)) {
     console.log('[email][skip] Escaneo ya en curso para este usuario, se omite.');
     return { insertadas: 0, motivo: 'ya_en_curso' };
   }
-  escaneosEnCurso.set(userId, ahora);
+  escaneosEnCurso.add(userId);
   try {
     const insertadas = await escanearCasilla(userId);
     return { insertadas, motivo: 'ok' };
@@ -61,6 +59,9 @@ async function escanearCasilla(userId: number): Promise<number> {
     secure: imap.port === 993,
     auth: { user: imap.user, pass: imap.password },
     logger: false,
+    connectionTimeout: 30_000,
+    greetingTimeout: 30_000,
+    socketTimeout: 60_000,
   });
 
   await client.connect();
@@ -69,10 +70,20 @@ async function escanearCasilla(userId: number): Promise<number> {
   try {
     const lock = await client.getMailboxLock('INBOX');
     try {
-      const uids = await client.search({ seen: false });
-      const objetivos = uids === false ? [] : uids.slice(-30);
-      const mensajes = client.fetch(objetivos, { envelope: true, source: true, uid: true });
-      const uidsProcesados: number[] = [];
+      if (!client.mailbox) throw new Error('No se pudo abrir INBOX');
+      const casilla = {
+        userId,
+        casilla: JSON.stringify([imap.host.toLowerCase(), imap.port, imap.user.toLowerCase(), 'INBOX']),
+        uidValidity: String(client.mailbox.uidValidity),
+      };
+      const procesados = await obtenerUidsProcesados(casilla);
+      // También incluye correos que el usuario ya abrió. El historial de UID
+      // persiste en PostgreSQL; no depende de la marca de lectura del correo.
+      const desde = new Date(Date.now() - 90 * 86_400_000);
+      const uids = await client.search({ since: desde }, { uid: true });
+      const objetivos = (uids || []).filter((uid) => !procesados.has(uid)).slice(0, 100);
+      if (objetivos.length === 0) return 0;
+      const mensajes = client.fetch(objetivos, { source: true, uid: true }, { uid: true });
 
       for await (const msg of mensajes) {
         if (!msg.source) continue;
@@ -80,7 +91,7 @@ async function escanearCasilla(userId: number): Promise<number> {
         const mail = await simpleParser(msg.source).catch(() => null);
         if (!mail) continue;
 
-        const partes: string[] = [mail.subject ?? '', mail.text ?? ''];
+        const partes: string[] = [mail.subject ?? '', mail.text ?? (mail.html ? mail.html.replace(/<[^>]*>/g, ' ') : '')];
         for (const adjunto of mail.attachments) {
           const esPdf = adjunto.contentType === 'application/pdf' || /\.pdf$/i.test(adjunto.filename ?? '');
           if (esPdf) {
@@ -96,16 +107,7 @@ async function escanearCasilla(userId: number): Promise<number> {
         };
 
         const parseado = parsearFactura(doc);
-        if (!parseado) continue;
-
-        await crearFacturaDeEmail(userId, parseado);
-        if (msg.uid) uidsProcesados.push(msg.uid);
-        insertadas += 1;
-        console.log(`[email][factura] Registrada desde ${doc.from} | ${parseado.proveedor} | ${parseado.monto} ${parseado.moneda} | vence ${parseado.fecha_vencimiento}`);
-      }
-
-      if (uidsProcesados.length > 0) {
-        await client.messageFlagsAdd(uidsProcesados, ['\\Seen']);
+        if (await registrarEmailProcesado(casilla, msg.uid, parseado)) insertadas += 1;
       }
     } finally {
       lock.release();
@@ -141,7 +143,9 @@ function limpiarMonto(cadena: string): number {
   const ultimoSeparadorDecimal = Math.max(sinSimbolo.lastIndexOf('.'), sinSimbolo.lastIndexOf(','));
   const parteDecimal = sinSimbolo.slice(ultimoSeparadorDecimal + 1);
   const parteEntera = sinSimbolo.slice(0, ultimoSeparadorDecimal).replace(/[.,]/g, '');
-  const numero = Number(`${parteEntera}.${parteDecimal}`);
+  const numero = parteDecimal.length === 2
+    ? Number(`${parteEntera}.${parteDecimal}`)
+    : Number(sinSimbolo.replace(/[.,]/g, ''));
   return Number.isNaN(numero) ? 0 : numero;
 }
 
@@ -151,7 +155,7 @@ function extraerMonto(texto: string): { monto: number; moneda: Moneda } | null {
   if (bruto) {
     const referencia = cercano![3] ?? '';
     const indice = texto.indexOf(bruto);
-    const contexto = indice >= 0 ? texto.slice(indice + bruto.length, indice + bruto.length + 8) : '';
+    const contexto = indice >= 0 ? texto.slice(Math.max(0, indice - 8), indice + bruto.length + 8) : '';
     const moneda = /u\$s|usd|d[oó]lares/i.test(`${referencia} ${contexto}`) ? 'USD' : 'ARS';
     return { monto: limpiarMonto(bruto), moneda };
   }

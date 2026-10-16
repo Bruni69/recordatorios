@@ -19,7 +19,7 @@
   <main class="contenedor">
     <section class="tarjeta">
       <h2>WhatsApp</h2>
-      <p class="texto-secundario">Número adonde llegan los recordatorios. Formato internacional con + (ej: +5491123456789).</p>
+      <p class="texto-secundario">Número para enviar mensajes de prueba por WhatsApp. Los recordatorios automáticos llegan por email. Formato internacional con + (ej: +5491123456789).</p>
       <div class="campo">
         <label for="whatsapp-to">Número de WhatsApp de destino</label>
         <input id="whatsapp-to" type="tel" placeholder="+5491123456789" />
@@ -33,7 +33,7 @@
       <h2>Captura por email</h2>
       <p class="texto-secundario" id="email-estado">…</p>
 
-      <p class="texto-secundario">Tu casilla de Gmail se lee desde <code>imap.gmail.com:993</code> con una contraseña de aplicación.</p>
+      <p class="texto-secundario">Se revisan los correos recibidos en los últimos 90 días, incluidos los ya leídos, en lotes de 100 por escaneo. Las facturas detectadas se guardan con estado «Revisar». Tu casilla de Gmail se lee desde <code>imap.gmail.com:993</code> con una contraseña de aplicación.</p>
       <div class="fila">
         <div class="campo">
           <label for="imap-user">Email</label>
@@ -51,7 +51,7 @@
 
     <section class="tarjeta">
       <h2>Recordatorios</h2>
-      <p class="texto-secundario">El servidor revisa los vencimientos todos los días a la hora configurada (<code>REMINDER_CRON</code> en .env).</p>
+      <p class="texto-secundario">Los avisos por email se envían 3 días (72 hs) y 2 días (48 hs) antes del vencimiento. Las facturas guardan una fecha sin hora, por lo que los plazos se calculan por día calendario. El servidor debe estar encendido: por defecto revisa cada 5 minutos, en horario de Argentina.</p>
       <button class="boton secundario" id="btn-reminders">Ejecutar revisión ahora</button>
       <p class="aviso" id="msg-reminders" hidden></p>
     </section>

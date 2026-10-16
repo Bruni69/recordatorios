@@ -3,6 +3,7 @@ import { config } from '../config.js';
 import { facturasPendientesProximas, reclamarAviso, liberarAviso, emailsDeUsuarios } from '../facturas.js';
 import type { ColumnaAviso } from '../facturas.js';
 import { enviarEmailAviso } from '../notify/emailNotify.js';
+import { escanearCasillasConfiguradas } from '../email/scheduler.js';
 
 export function formatearFecha(iso: string): string {
   const [a, m, d] = iso.split('-').map(Number);
@@ -10,12 +11,10 @@ export function formatearFecha(iso: string): string {
 }
 
 export function diasHasta(iso: string): number {
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
-  const [a, m, d] = iso.split('-').map(Number);
-  const vencimiento = new Date(a!, m! - 1, d!);
-  vencimiento.setHours(0, 0, 0, 0);
-  return Math.round((vencimiento.getTime() - hoy.getTime()) / 86_400_000);
+  const hoy = new Intl.DateTimeFormat('en-CA', {
+    timeZone: config.timezone, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date());
+  return Math.round((Date.parse(`${iso}T00:00:00Z`) - Date.parse(`${hoy}T00:00:00Z`)) / 86_400_000);
 }
 
 export function formatearMonto(monto: number, moneda: string): string {
@@ -36,49 +35,49 @@ function armarAvisos(
   proveedor: string,
   monto: number,
   moneda: string,
-  avisoSemana: boolean,
+  aviso72: boolean,
   aviso48: boolean
 ): AvisoPendiente[] {
   const avisos: AvisoPendiente[] = [];
   const dias = diasHasta(fechaVencimiento);
 
-  if (dias === 7 && !avisoSemana) {
+  if (dias === 3 && !aviso72) {
     avisos.push({
-      columna: 'aviso_semana_enviado',
-      asunto: `⏰ Recordatorio: factura de ${proveedor} vence en 7 días`,
+      columna: 'aviso_72hs_enviado',
+      asunto: `⏰ Recordatorio: factura de ${proveedor} vence en 72 horas`,
       cuerpo: [
-        `⏰ RECORDATORIO -7 días`,
+        `⏰ RECORDATORIO -72 horas`,
         ``,
         `Tu factura de ${proveedor}`,
         `por ${formatearMonto(monto, moneda)}`,
         `vence el ${formatearFecha(fechaVencimiento)}.`,
-        `Quedan 7 días.`,
+        `Quedan 3 días para el vencimiento.`,
       ].join('\n'),
     });
   }
-  if (dias === 2 && !aviso48) {
+  if (dias >= 0 && dias <= 2 && !aviso48) {
     avisos.push({
       columna: 'aviso_48hs_enviado',
-      asunto: `🚨 Urgente: factura de ${proveedor} vence en 48 horas`,
+      asunto: `🚨 Urgente: factura de ${proveedor} vence ${dias === 0 ? 'hoy' : `en ${dias} día(s)`}`,
       cuerpo: [
         `🚨 RECORDATORIO -48 horas`,
         ``,
         `Tu factura de ${proveedor}`,
         `por ${formatearMonto(monto, moneda)}`,
         `vence ${formatearFecha(fechaVencimiento)}.`,
-        `Te quedan 48 horas para pagar.`,
+        `Este aviso corresponde al plazo de 48 horas antes del vencimiento.`,
       ].join('\n'),
     });
   }
   return avisos;
 }
 
-export async function revisarVencimientos(): Promise<number> {
-  const proximas = await facturasPendientesProximas([7, 2]);
-  console.log('[reminders][debug] Facturas próximas:', proximas.length, JSON.stringify(proximas));
+export async function revisarVencimientos(userId?: number): Promise<number> {
+  const proximas = await facturasPendientesProximas([0, 1, 2, 3], userId);
   const duenos = [...new Set(proximas.map((f) => f.user_id))];
   const emails = await emailsDeUsuarios(duenos);
   let avisos = 0;
+  let fallidos = 0;
 
   for (const factura of proximas) {
     const pendientes = armarAvisos(
@@ -86,7 +85,7 @@ export async function revisarVencimientos(): Promise<number> {
       factura.proveedor,
       factura.monto,
       factura.moneda,
-      factura.aviso_semana_enviado,
+      factura.aviso_72hs_enviado,
       factura.aviso_48hs_enviado
     );
 
@@ -103,11 +102,12 @@ export async function revisarVencimientos(): Promise<number> {
 
       let enviado = false;
       try {
-        enviado = (await enviarEmailAviso(destino, pendiente.asunto, pendiente.cuerpo)).enviado;
+        enviado = (await enviarEmailAviso(destino, pendiente.asunto, pendiente.cuerpo, factura.user_id)).enviado;
       } catch (err) {
         console.error(`[reminders][envio][error] Factura ${factura.id} (${pendiente.columna}):`, err);
       }
       if (!enviado) {
+        fallidos += 1;
         await liberarAviso(factura.user_id, factura.id, pendiente.columna);
         continue;
       }
@@ -116,16 +116,30 @@ export async function revisarVencimientos(): Promise<number> {
   }
 
   if (avisos > 0) console.log(`[reminders] ${avisos} aviso(s) enviado(s).`);
+  if (fallidos > 0 && userId !== undefined) {
+    throw new Error(`No se pudieron enviar ${fallidos} aviso(s). Verificá la conexión y las credenciales de tu casilla o SMTP. Los envíos fallidos se reintentarán.`);
+  }
   return avisos;
 }
 
 export function iniciarScheduler(): void {
-  if (!cron.validate(config.reminderCron)) {
-    console.error(`[reminders] Cron inválido: ${config.reminderCron}. No se programa el trabajo.`);
-    return;
-  }
-  cron.schedule(config.reminderCron, () => {
-    revisarVencimientos().catch((err) => console.error('[reminders][error]', err));
+  const registrar = (expresion: string, nombre: string, trabajo: () => Promise<unknown>): void => {
+    if (!cron.validate(expresion)) throw new Error(`${nombre}: expresión cron inválida`);
+    cron.schedule(expresion, () => {
+      trabajo().catch((err) => console.error(`[${nombre}]`, err));
+    }, { timezone: config.timezone });
+    console.log(`[${nombre}] Programado: ${expresion} (${config.timezone})`);
+  };
+  registrar(config.emailScanCron, 'email', async () => {
+    await escanearCasillasConfiguradas();
+    await revisarVencimientos();
   });
-  console.log(`[reminders] Trabajo programado: ${config.reminderCron}`);
+  registrar(config.reminderCron, 'reminders', revisarVencimientos);
+}
+
+export async function ejecutarRevisionInicial(): Promise<void> {
+  // Los avisos existentes no esperan a que termine una conexión IMAP lenta.
+  await revisarVencimientos();
+  await escanearCasillasConfiguradas();
+  await revisarVencimientos();
 }

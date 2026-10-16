@@ -26,7 +26,9 @@ export const config = {
     authToken: process.env.TWILIO_AUTH_TOKEN ?? '',
     fromNumber: process.env.TWILIO_WHATSAPP_FROM ?? 'whatsapp:+14155238886',
   },
-  reminderCron: process.env.REMINDER_CRON ?? '0 9 * * *',
+  reminderCron: process.env.REMINDER_CRON ?? '*/5 * * * *',
+  emailScanCron: process.env.EMAIL_SCAN_CRON ?? '*/5 * * * *',
+  timezone: process.env.APP_TIMEZONE ?? 'America/Argentina/Buenos_Aires',
 
   smtp: {
     host: process.env.SMTP_HOST ?? 'smtp.gmail.com',

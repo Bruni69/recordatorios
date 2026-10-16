@@ -1,3 +1,4 @@
+import type { PoolClient } from 'pg';
 /// <reference types="node" />
 import { pool } from './db.js';
 import { Factura, FilaFactura, filaAFactura, NuevaFactura, DatoFacturaEmail, SettingsPublic } from './models.js';
@@ -29,9 +30,9 @@ export async function crearFactura(userId: number, datos: NuevaFactura, origen: 
   return filaAFactura(rows[0]!);
 }
 
-export async function crearFacturaDeEmail(userId: number, datos: DatoFacturaEmail): Promise<Factura> {
+export async function crearFacturaDeEmail(userId: number, datos: DatoFacturaEmail, db: Pick<PoolClient, 'query'> = pool): Promise<Factura> {
   const { proveedor, monto, moneda, fecha_vencimiento, email, notas } = datos;
-  const { rows } = await pool.query<FilaFactura>(
+  const { rows } = await db.query<FilaFactura>(
     `insert into facturas (user_id, proveedor, monto, moneda, fecha_vencimiento, email, notas, origen, estado)
      values ($1, $2, $3, $4, $5, $6, $7, 'email', 'revisar')
      returning *`,
@@ -63,7 +64,8 @@ export async function actualizarFactura(
      set proveedor = $1, monto = $2, moneda = $3, fecha_vencimiento = $4,
          notas = $5, estado = $6,
          aviso_semana_enviado = case when $7 then false else aviso_semana_enviado end,
-         aviso_48hs_enviado = case when $7 then false else aviso_48hs_enviado end
+         aviso_48hs_enviado = case when $7 then false else aviso_48hs_enviado end,
+         aviso_72hs_enviado = case when $7 then false else aviso_72hs_enviado end
      where id = $8 and user_id = $9
      returning *`,
     [proveedor, monto, moneda, fecha_vencimiento, notas, estado, resetAvisos, id, userId],
@@ -85,7 +87,7 @@ export async function buscarFactura(userId: number, id: number): Promise<Factura
   return filaAFactura(rows[0]!);
 }
 
-export type ColumnaAviso = 'aviso_semana_enviado' | 'aviso_48hs_enviado';
+export type ColumnaAviso = 'aviso_72hs_enviado' | 'aviso_48hs_enviado';
 
 export async function marcarAvisoEnviado(userId: number, id: number, columna: ColumnaAviso): Promise<void> {
   await pool.query(`update facturas set ${columna} = true where id = $1 and user_id = $2`, [id, userId]);
@@ -115,19 +117,15 @@ export interface FacturaConDueno extends Factura {
   user_id: number;
 }
 
-export async function facturasPendientesProximas(diasRestantes: number[]): Promise<FacturaConDueno[]> {
+export async function facturasPendientesProximas(diasRestantes: number[], userId?: number): Promise<FacturaConDueno[]> {
   const { rows } = await pool.query<FilaFactura>(
     `select * from facturas
      where estado in ('pendiente', 'revisar')
-       and fecha_vencimiento in (
-         select (current_date + generado.d)::date
-         from generate_series(0, 365) generado(d)
-         where generado.d = any($1::int[])
-       )
+       and fecha_vencimiento - (now() at time zone $2)::date = any($1::int[])
+       and ($3::bigint is null or user_id = $3)
      order by fecha_vencimiento asc`,
-    [diasRestantes],
+    [diasRestantes, config.timezone, userId ?? null],
   );
-  console.log('[debug][facturasPendientesProximas] rows:', rows.length, JSON.stringify(rows));
   return rows.map((fila) => ({ ...filaAFactura(fila), user_id: fila.user_id }));
 }
 

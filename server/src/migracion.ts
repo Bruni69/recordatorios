@@ -13,7 +13,7 @@ async function tablaExiste(nombre: string): Promise<boolean> {
 
 async function columnaExiste(tabla: string, columna: string): Promise<boolean> {
   const { rows } = await pool.query(
-    "select 1 from information_schema.columns where table_name = $1 and column_name = $2",
+    "select 1 from information_schema.columns where table_schema = current_schema() and table_name = $1 and column_name = $2",
     [tabla, columna],
   );
   return rows.length > 0;
@@ -76,7 +76,6 @@ async function asegurarTablaFacturas(): Promise<void> {
 
   await pool.query('create index if not exists idx_facturas_vencimiento on facturas (fecha_vencimiento)');
   await pool.query('create index if not exists idx_facturas_estado on facturas (estado)');
-  await pool.query('create index if not exists idx_facturas_usuario on facturas (user_id)');
 }
 
 async function asegurarTablaSettings(): Promise<void> {
@@ -117,5 +116,14 @@ export async function asegurarMigracion(): Promise<void> {
   const adminId = await asegurarTablaUsuarios();
   await asegurarFacturas(adminId);
   await asegurarSettings(adminId);
+  await pool.query('alter table facturas add column if not exists aviso_72hs_enviado boolean not null default false');
+  await pool.query(`create table if not exists emails_procesados (
+    user_id bigint not null references usuarios(id) on delete cascade,
+    casilla text not null,
+    uid_validity text not null,
+    uid bigint not null,
+    procesado_en timestamptz not null default now(),
+    primary key (user_id, casilla, uid_validity, uid)
+  )`);
   console.log('✅ Migración de esquema verificada/aplicada.');
 }

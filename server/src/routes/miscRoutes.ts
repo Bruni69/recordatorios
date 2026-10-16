@@ -10,6 +10,7 @@ import {
 } from '../facturas.js';
 import { enviarWhatsAppConfigurado } from '../notify/whatsapp.js';
 import { revisarVencimientos } from '../reminders/scheduler.js';
+import { emailAvisosConfigurado } from '../notify/emailNotify.js';
 
 export const miscRoutes = Router();
 
@@ -52,6 +53,7 @@ miscRoutes.get('/api/email/config', requireAuth, async (req: Request, res: Respo
     const guardada = await obtenerConfigImapDesdeBd(req.usuarioId);
     res.json({
       configurado: await emailConfiguradoCompletoBd(req.usuarioId),
+      avisos_configurados: await emailAvisosConfigurado(req.usuarioId),
       host: guardada?.host ?? '',
       port: guardada?.port ?? null,
       user: guardada?.user ?? '',
@@ -78,7 +80,7 @@ miscRoutes.post('/api/email/config', requireAuth, async (req: Request, res: Resp
     }
     await guardarSetting(req.usuarioId, 'imap_host', host.trim());
     await guardarSetting(req.usuarioId, 'imap_user', user.trim());
-    await guardarSetting(req.usuarioId, 'imap_password', password.trim());
+    await guardarSetting(req.usuarioId, 'imap_password', host.trim().toLowerCase() === 'imap.gmail.com' ? password.replace(/\s/g, '') : password.trim());
     if (typeof port === 'number' && port > 0) {
       await guardarSetting(req.usuarioId, 'imap_port', String(port));
     }
@@ -116,12 +118,16 @@ miscRoutes.post('/api/notify/test', requireAuth, async (req: Request, res: Respo
   }
 });
 
-miscRoutes.post('/api/reminders/run', requireAuth, async (_req: Request, res: Response) => {
+miscRoutes.post('/api/reminders/run', requireAuth, async (req: Request, res: Response) => {
   try {
-    const avisos = await revisarVencimientos();
+    if (!(await emailAvisosConfigurado(req.usuarioId))) {
+      res.status(400).json({ error: 'Configurá tu casilla Gmail con una contraseña de aplicación para enviar avisos, o configurá SMTP en el servidor.' });
+      return;
+    }
+    const avisos = await revisarVencimientos(req.usuarioId);
     res.json({ avisos });
   } catch (err) {
     console.error('[reminders][run]', err);
-    res.status(500).json({ error: 'Error al revisar vencimientos' });
+    res.status(500).json({ error: err instanceof Error && err.message.startsWith('No se pudieron enviar') ? err.message : 'Error al revisar vencimientos' });
   }
 });
